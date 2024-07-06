@@ -3,25 +3,19 @@ const app = require('./app');
 const server = awsServerlessExpress.createServer(app);
 
 exports.handler = async (event, context) => {
-    context.callbackWaitsForEmptyEventLoop = false; // Ensure Lambda does not wait for event loop to be empty
-    return awsServerlessExpress.proxy(server, event, context, 'PROMISE').promise;
+    try {
+        console.log("Creating server...");
+        const response = awsServerlessExpress.proxy(server, event, context,'PROMISE').promise;
+        console.log("...server created.");
+        return response;
+    } catch (error) {
+        console.error('Error:', error);
+        return { statusCode: 500, body: JSON.stringify({ message: "Internal server error" }) };
+    }
 };
 
-// const awsServerlessExpress = require('aws-serverless-express');
-// const app = require('./app');
-// const util = require('util');
+// // Import the router from routes.js
+// const router = require('./routes');
 
-// const server = awsServerlessExpress.createServer(app);
-// const proxy = util.promisify(awsServerlessExpress.proxy.bind(awsServerlessExpress, server));
-
-// exports.handler = async (event, context) => {
-//     context.callbackWaitsForEmptyEventLoop = false;
-
-//     try {
-//         await proxy(event, context);
-//         return { statusCode: 200, body: JSON.stringify({ message: "Success" }) };
-//     } catch (error) {
-//         console.error('Error:', error);
-//         return { statusCode: 500, body: JSON.stringify({ message: "Internal server error" }) };
-//     }
-// };
+// // Use the router with your Express app
+// app.use('/', router);
