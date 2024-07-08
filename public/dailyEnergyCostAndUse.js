@@ -1,25 +1,30 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    function coloring(data) {
+    function getData() {
+        const touRates = [0.15, 0.14, 0.13, 0.12, 0.11, 0.10, 0.09, 0.10, 0.11, 0.15, 0.19, 0.25, 0.27, 0.25, 0.21, 0.16, 0.11, 0.09, 0.07, 0.09, 0.11, 0.12, 0.13, 0.14];
+        const actualHourlyUsage = [1.0, 1.05, 1.10, 1.05, 1.9, 2.1, 1.85, 1.65, 1.7, 2.3, 2.4, 2.35, 1.5, 1.35, 1.2, 1.75, 2.8, 2.9, 2.2, 1.5, 1.25, 1.2, 1.1, 1.05];
+        const scaler = touRates.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / actualHourlyUsage.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+        const scaledHourlyUsage = actualHourlyUsage.map(rate => rate * scaler);
+        
         let maxProduct = 0;
         let minProduct = Infinity;
       
         // Find min and max first
-        data.map((point) => {
-            const product = point[0] * point[1];
+        actualHourlyUsage.map((value, index) => {
+            const product = value * touRates[index];
             maxProduct = Math.max(maxProduct, product);
             minProduct = Math.min(minProduct, product);
         });
       
-        console.log(maxProduct, minProduct);
+        console.log('min/max products', maxProduct, minProduct);
       
         // Come up a split interval
         const numSplits = 10;
         const splitInterval = (maxProduct - minProduct) / (numSplits - 1);
         
         // Assign colors along the split interval
-        return data.map((point) => {
-            const product = point[0] * point[1]; // kW used * the usage cost
+        const data = actualHourlyUsage.map((value, index) => {
+            const product = value * touRates[index]; // kW used * the usage cost
 
             let color;
             if (product < minProduct + (1 * splitInterval)) color = '#8FD2F9';
@@ -33,52 +38,38 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (product < minProduct + (9 * splitInterval)) color = '#b76566';
             else color = '#e94f37';
 
-            return { y: point[0], z: point[1], color: color };
+            return { actualHourlyUse: value, scaledHourlyUse: scaledHourlyUsage[index], touRate: touRates[index], truncatedRate: touRates[index].toFixed(2), color: color };
         });
+        return data
     }
-
+    
     const hourlyIntervals = ['6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM', '11:00 PM', '12:00 AM', '1:00 AM', '2:00 AM', '3:00 AM', '4:00 AM', '5:00 AM'];
+    const data = getData();
+    const totalAnnualEnergyCost = data.reduce((acc, point) => acc + (point.actualHourlyUse * point.touRate * 365), 0);
+    console.log(totalAnnualEnergyCost);
 
-    const data = [
-        [1.0, 0.15],
-        [1.05, 0.14],
-        [1.10, 0.13],
-        [1.05, 0.12],
-        [1.9, 0.11],
-        [2.1, 0.10],
-        [1.85, 0.09],
-        [1.65, 0.10],
-        [1.7, 0.11],
-        [2.3, 0.15],
-        [2.4, 0.19],
-        [2.35, 0.25],
-        [1.5, 0.27],
-        [1.35, 0.25],
-        [1.2, 0.21],
-        [1.75, 0.16],
-        [2.8, 0.11],
-        [2.9, 0.09],
-        [2.2, 0.07],
-        [1.5, 0.09],
-        [1.25, 0.11],
-        [1.2, 0.12],
-        [1.1, 0.13],
-        [1.05, 0.14]
-    ];
+
     
     /* 
      * Renders the chart (and stores data locally for exporting)
      */
     const dailyEnergyCostAndUse = Highcharts.chart('dailyEnergyCostAndUseContainer', {
         chart: {
-            type: 'variwide'
+            type: 'column'
         },
         title: {
             text: 'Annual Energy Usage and Cost Throughout the Day'
         },
+        subtitle: {
+            text: `Total Annual Energy Cost: $${totalAnnualEnergyCost.toFixed(2)}`
+        },
         yAxis: {
             title: {
-                text: 'Hourly cost of energy (in Dollars)'
+                text: 'Time of Use Rate'
+            },
+            labels: {
+                enabled: true,
+                format: '${value:.2f}'
             }
         },
         xAxis: {
@@ -90,25 +81,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 rotation: -45
             }
         },
+        // tooltip: {
+        //     shared: true,
+        //     split: true
+        // },
         legend: {
-            enabled: false
+            // TODO
+            enabled: false,
+            layout: 'vertical',
+            align: 'right',
+            verticalAlign: 'middle',
+            useHTML: true,
+            labelFormatter: function() {
+                return `<span style="border-bottom: 1px dashed ${this.color}; padding-bottom: 2px;">${this.name}</span>`;
+            }
+        },
+        plotOptions: {
+            column: {
+                pointPadding: 0,
+                groupPadding: 0,
+                borderWidth: 0
+            }
         },
         series: [{
-            type: 'variwide',
-            keys: ['y', 'z'],
-            data: coloring(data),
+            name: 'Your Energy Usage',
+            type: 'column',
+            // this format enables us to use all the data
+            data: data.map(point => ({
+                ...point,
+                y: Number(point.scaledHourlyUse)
+            })),
             dataLabels: {
                 enabled: true,
                 formatter: function() {
-                // kW used ✖ the usage cost ✖ number of days in a year
-                return '$' + (this.y * this.point.options.z * 365).toFixed(2);
+                    // since we are using a scaler to shrink the value of the data, we need to do the math to bring it back to it's original value for display
+                    return '$' + (this.point.actualHourlyUse * this.point.touRate * 365).toFixed(2);
                 }
             },
             tooltip: {
-                pointFormat: 'Energy used: <b>{point.y} kW</b><br>' +
-                'Daily energy cost: <b>${point.z}</b><br>'
+                pointFormat: 'Average Daily energy use: <b>{point.options.actualHourlyUse} kW</b><br>Time of Use Rate: <b>${point.options.truncatedRate}</b><br>'
             },
-            borderRadius: 3,
+            borderRadius: 2,
+          }, {
+            name: 'Time of Use Rates',
+            type: 'spline',
+            data: data.map(point => ({
+                ...point,
+                y: Number(point.touRate)
+            })),
+            color: {
+                linearGradient: { x1: 0, x2: 0, y1: 0, y2: 1 },
+                stops: [
+                  [0, 'red'],
+                  [1, 'blue']
+                ]
+              },
+            dashStyle: 'LongDash',
+            marker: {
+                enabled: false,
+            }
           }
         ],
         exporting: {
@@ -130,4 +161,8 @@ document.addEventListener('DOMContentLoaded', function() {
     //     type: filetype,
     //     filename: 'dailyEnergyCostAndUseChart'
     // }, dailyEnergyCostAndUseOptions);
+
+    /*
+     * Now show how generating electricity at peak times would slash the bill
+     */
 });
