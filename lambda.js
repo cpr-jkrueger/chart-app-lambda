@@ -13,9 +13,3 @@ exports.handler = async (event, context) => {
         return { statusCode: 500, body: JSON.stringify({ message: "Internal server error" }) };
     }
 };
-
-// // Import the router from routes.js
-// const router = require('./routes');
-
-// // Use the router with your Express app
-// app.use('/', router);

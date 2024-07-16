@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const awsServerlessExpress = require('aws-serverless-express');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -17,4 +18,18 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-module.exports = app;
+const server = awsServerlessExpress.createServer(app);
+
+let handler = async (event, context) => {
+    try {
+        console.log("Creating server...");
+        const response = awsServerlessExpress.proxy(server, event, context,'PROMISE').promise;
+        console.log("...server created.");
+        return response;
+    } catch (error) {
+        console.error('Error:', error);
+        return { statusCode: 500, body: JSON.stringify({ message: "Internal server error" }) };
+    }
+};
+
+module.exports = { app, routes, handler };

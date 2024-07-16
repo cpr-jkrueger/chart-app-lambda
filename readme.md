@@ -1,5 +1,6 @@
 ## To run locally
-`node app.js
+yarn install
+node app.js
 
 ## To run on podman container (won't work with Lambda configured containerfile)
 podman build -t wattplan-chart-image-generator -f containerfile
